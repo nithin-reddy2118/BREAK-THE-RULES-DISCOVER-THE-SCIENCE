@@ -1,0 +1,6 @@
+{
+  "name": "Break the Rules, Discover the Science",
+  "description": "AI-Powered Universal Science Laboratory and Global Innovation Platform for challenging, exploring, and discovering scientific principles.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
