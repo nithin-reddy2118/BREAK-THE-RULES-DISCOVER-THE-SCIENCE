@@ -1,7 +1,7 @@
-import { executeAlgorithm } from './algorithmExecutor';
-import { interpolateWaterBoilingPoint } from './experiments';
-import { matchLocalScienceTopic } from './localFallback';
-import { evaluateSafety } from './safetyEngine';
+import { executeAlgorithm } from './algorithmExecutor.ts';
+import { interpolateWaterBoilingPoint } from './experiments.ts';
+import { matchLocalScienceTopic } from './localFallback.ts';
+import { evaluateSafety } from './safetyEngine.ts';
 import type {
   EducationLevel,
   ExperimentPreparationSpec,
@@ -13,7 +13,7 @@ import type {
   SmartSceneSpec,
   SmartSubject,
   VideoDurationPreset,
-} from '../types/smartLearning';
+} from '../types/smartLearning.ts';
 
 export interface ClassificationResult {
   subject: SmartSubject;
@@ -1476,7 +1476,7 @@ export function buildDeterministicSmartLesson(opts: {
     const defaultArr = algoId === 'binary-search' ? [4, 11, 18, 25, 33, 42, 57, 68, 84] : [38, 14, 52, 9, 44, 21, 63];
     const arr = customParams?.arrayValues && customParams.arrayValues.length >= 3 ? customParams.arrayValues : defaultArr;
     const target = customParams?.targetValue ?? 42;
-    const exec = executeAlgorithm(algoId, { array: arr, target });
+    const exec = executeAlgorithm(algoId, { target }, arr.join(','));
 
     const d = (s: number) => Math.max(1.8, Number((s * scaleFactor).toFixed(1)));
     const isBinary = algoId === 'binary-search';
@@ -1488,16 +1488,16 @@ export function buildDeterministicSmartLesson(opts: {
       title: `Step ${idx + 1}: ${st.operation}`,
       durationSec: d(2.3),
       narrationText: st.explanation,
-      subtitleText: `${st.operation}: ${st.stateSummary}`,
-      mathOrFormulaHighlight: st.mathOrLogic,
-      calculationStepText: st.stateSummary,
+      subtitleText: `${st.operation}: ${st.dataStructureState}`,
+      mathOrFormulaHighlight: st.mathExpression,
+      calculationStepText: st.dataStructureState,
       visualKind: isBinary ? 'cs-binary-search' : 'cs-sorting',
       visualPayload: {
         visualState: st.visualState,
-        variables: st.variables,
+        variables: st.intermediateValues,
         operation: st.operation,
       },
-      caption: st.stateSummary,
+      caption: st.dataStructureState,
     }));
 
     return {
@@ -1532,7 +1532,7 @@ export function buildDeterministicSmartLesson(opts: {
         {
           title: `Deterministic Trace on [${arr.join(', ')}]`,
           given: isBinary ? `Sorted Array = [${arr.join(', ')}], Target = ${target}` : `Unsorted Array = [${arr.join(', ')}]`,
-          steps: exec.steps.slice(0, 6).map((s) => `${s.operation}: ${s.stateSummary}`),
+          steps: exec.steps.slice(0, 6).map((s) => `${s.operation}: ${s.dataStructureState}`),
           finalAnswer: exec.finalSummary,
         },
       ],

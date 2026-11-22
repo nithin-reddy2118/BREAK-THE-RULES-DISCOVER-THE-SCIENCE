@@ -1,6 +1,7 @@
 export type PageId =
   | 'home'
   | 'dashboard'
+  | 'smart-learning'
   | 'explorer'
   | 'algorithm-explorer'
   | 'creator'

@@ -63,10 +63,18 @@ export function HomePage() {
             <div className="flex flex-wrap items-center gap-3 pt-2">
               <button
                 type="button"
-                onClick={() => navigate('algorithm-explorer')}
+                onClick={() => navigate('smart-learning')}
                 className="px-5 py-3 rounded-lg bg-blue-700 text-white font-semibold text-sm hover:bg-blue-800 transition-colors flex items-center gap-2 min-h-[44px] shadow-sm"
               >
-                <Cpu className="w-4 h-4" />
+                <Sparkles className="w-4 h-4" />
+                {t.nav.smartLearning}
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate('algorithm-explorer')}
+                className="px-5 py-3 rounded-lg bg-white border border-slate-200 text-slate-900 font-semibold text-sm hover:border-blue-400 hover:bg-blue-50/50 transition-colors flex items-center gap-2 min-h-[44px] shadow-sm"
+              >
+                <Cpu className="w-4 h-4 text-blue-700" />
                 {t.nav.algorithmExplorer}
               </button>
               <button

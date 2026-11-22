@@ -8,6 +8,7 @@ import { TopHeader } from './components/layout/TopHeader';
 import { Sidebar } from './components/layout/Sidebar';
 import { HomePage } from './pages/HomePage';
 import { DashboardPage } from './pages/DashboardPage';
+import { SmartLearningPage } from './pages/SmartLearningPage';
 import { ScienceExplorerPage } from './pages/ScienceExplorerPage';
 import { ExperimentCreatorPage } from './pages/ExperimentCreatorPage';
 import { VirtualLabPage } from './pages/VirtualLabPage';
@@ -32,6 +33,8 @@ function ActivePageView() {
       return <HomePage />;
     case 'dashboard':
       return <DashboardPage />;
+    case 'smart-learning':
+      return <SmartLearningPage />;
     case 'explorer':
       return <ScienceExplorerPage />;
     case 'creator':
@@ -93,6 +96,9 @@ function AppShell() {
             Break the Rules, Discover the Science · Universal Science Laboratory, Algorithm Lab & Innovation Platform
           </div>
           <div className="flex flex-wrap gap-5">
+            <button type="button" onClick={() => navigate('smart-learning')} className="hover:text-blue-700">
+              AI Smart Learning
+            </button>
             <button type="button" onClick={() => navigate('algorithm-explorer')} className="hover:text-blue-700">
               Algorithm Explorer
             </button>

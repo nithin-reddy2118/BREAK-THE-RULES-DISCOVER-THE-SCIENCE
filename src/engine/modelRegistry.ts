@@ -1,6 +1,6 @@
-import { EXPERIMENTS, getDefaultParams } from './experiments';
-import { getRecommendedKitForExperiment } from '../data/labEquipment';
-import type { ExperimentDefinition, LabDepartmentId, SafetyLevel } from '../types/science';
+import { EXPERIMENTS, getDefaultParams } from './experiments.ts';
+import { getRecommendedKitForExperiment } from '../data/labEquipment.ts';
+import type { ExperimentDefinition, LabDepartmentId, SafetyLevel } from '../types/science.ts';
 
 export interface ScientificModelEntry {
   modelId: string;

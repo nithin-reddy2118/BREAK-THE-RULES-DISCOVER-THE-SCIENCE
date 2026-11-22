@@ -47,6 +47,7 @@ export function Sidebar() {
       items: [
         { id: 'home', label: t.nav.home, icon: Home },
         { id: 'dashboard', label: t.nav.dashboard, icon: LayoutDashboard },
+        { id: 'smart-learning', label: t.nav.smartLearning, icon: GraduationCap },
         { id: 'virtual-lab', label: t.nav.virtualLab, icon: FlaskConical },
         { id: 'algorithm-explorer', label: t.nav.algorithmExplorer, icon: Cpu },
         { id: 'explorer', label: t.nav.explorer, icon: Compass },

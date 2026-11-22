@@ -18,6 +18,10 @@ export interface EquipmentSimState {
   volumeCm3?: number;
   bottleColor?: string;
   chemicalFormula?: string;
+  liquidColor?: string;
+  gasActive?: boolean;
+  gasColor?: string;
+  precipitateColor?: string;
 }
 
 interface EquipmentIllustrationProps {
@@ -39,16 +43,16 @@ export function EquipmentIllustration({
 
   switch (kind) {
     case 'beaker': {
-      const bubbleFactor = isBoiling ? 1 : isRunning && liveTemp > 60 ? 0.35 : 0;
+      const bubbleFactor = isBoiling ? 1 : sim.gasActive ? 0.85 : isRunning && liveTemp > 60 ? 0.35 : 0;
       const tempRatio = Math.min(1, Math.max(0, (liveTemp - 20) / 100));
       const liquidColor =
-        tempRatio > 0.75 ? '#35D5F2' : tempRatio > 0.45 ? '#2694C9' : '#1E4B7A';
+        sim.liquidColor || (tempRatio > 0.75 ? '#35D5F2' : tempRatio > 0.45 ? '#2694C9' : '#1E4B7A');
       const bubbles = [0, 1.1, 2.3, 3.6, 4.8].map((seed, idx) => {
-        const progress = ((phase * (isBoiling ? 1.8 : 0.7) + seed) % 3) / 3;
+        const progress = ((phase * (isBoiling || sim.gasActive ? 1.8 : 0.7) + seed) % 3) / 3;
         return {
           cx: 28 + (idx % 4) * 11 + Math.sin(phase + idx) * 2.5,
           cy: 78 - progress * 40,
-          r: isBoiling ? 2.2 + progress * 2.4 : 1.5,
+          r: isBoiling || sim.gasActive ? 2.2 + progress * 2.4 : 1.5,
           opacity: bubbleFactor * (1 - progress * 0.55),
         };
       });
@@ -66,15 +70,25 @@ export function EquipmentIllustration({
           <path
             d="M24 38 L72 38 L72 78 Q72 82 68 82 L28 82 Q24 82 24 78 Z"
             fill={liquidColor}
-            fillOpacity="0.62"
+            fillOpacity="0.65"
           />
+          {sim.precipitateColor && sim.precipitateColor !== 'transparent' && (
+            <path d="M26 75 Q48 72 70 75 L70 81 L26 81 Z" fill={sim.precipitateColor} opacity="0.9" />
+          )}
           <line x1="25" y1="38" x2="71" y2="38" stroke="#8CE8FF" strokeWidth="1.6" />
           {[48, 60, 72].map((y) => (
             <line key={y} x1="25" y1={y} x2="34" y2={y} stroke="#E2E8F0" strokeOpacity="0.6" strokeWidth="1.3" />
           ))}
           {bubbleFactor > 0 &&
             bubbles.map((b, i) => (
-              <circle key={i} cx={b.cx} cy={b.cy} r={b.r} fill="#FFFFFF" opacity={b.opacity} />
+              <circle
+                key={i}
+                cx={b.cx}
+                cy={b.cy}
+                r={b.r}
+                fill={sim.gasColor && sim.gasColor !== 'transparent' ? sim.gasColor : '#FFFFFF'}
+                opacity={b.opacity}
+              />
             ))}
           {isBoiling && (
             <g opacity={0.65}>
@@ -501,18 +515,35 @@ export function EquipmentIllustration({
         </svg>
       );
 
-    default:
+    default: {
+      const liq = sim.liquidColor || '#1E4B7A';
+      const showBubbles = isBoiling || Boolean(sim.gasActive);
       return (
         <svg viewBox="0 0 96 96" className={className} aria-hidden="true">
           <path
             d="M40 16 L56 16 L56 34 L72 72 Q74 78 66 78 L30 78 Q22 78 24 72 L40 34 Z"
-            fill="#1E4B7A"
-            fillOpacity="0.45"
+            fill={liq}
+            fillOpacity="0.52"
             stroke="#35D5F2"
             strokeWidth="2.2"
           />
-          <line x1="32" y1="58" x2="64" y2="58" stroke="#8CE8FF" strokeWidth="1.6" />
+          {sim.precipitateColor && sim.precipitateColor !== 'transparent' && (
+            <path d="M29 73 Q48 70 67 73 L66 77 L30 77 Z" fill={sim.precipitateColor} opacity="0.92" />
+          )}
+          <line x1="32" y1="56" x2="64" y2="56" stroke="#8CE8FF" strokeWidth="1.6" />
+          {showBubbles &&
+            [0, 1, 2].map((i) => (
+              <circle
+                key={i}
+                cx={41 + i * 7}
+                cy={72 - ((phase * 14 + i * 7) % 24)}
+                r="2.2"
+                fill="#FFFFFF"
+                opacity="0.82"
+              />
+            ))}
         </svg>
       );
+    }
   }
 }

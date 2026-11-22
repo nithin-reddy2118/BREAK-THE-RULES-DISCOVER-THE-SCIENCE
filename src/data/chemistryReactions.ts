@@ -1,5 +1,5 @@
-import { interpolateWaterBoilingPoint } from '../engine/experiments';
-import type { SafetyLevel } from './science';
+import { interpolateWaterBoilingPoint } from '../engine/experiments.ts';
+import type { SafetyLevel } from '../types/science.ts';
 
 export interface ChemistryBenchReactionOutcome {
   id: string;

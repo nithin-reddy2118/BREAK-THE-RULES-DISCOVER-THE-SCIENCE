@@ -1,11 +1,11 @@
-import { EXPERIMENTS } from './experiments';
-import { evaluateSafety } from './safetyEngine';
+import { EXPERIMENTS } from './experiments.ts';
+import { evaluateSafety } from './safetyEngine.ts';
 import type {
   CustomCalcTemplate,
   CustomExperimentDefinition,
   LabDepartmentId,
   VisualFallbackType,
-} from '../types/science';
+} from '../types/science.ts';
 
 export interface LocalMatchResult {
   matchedExperimentId: string | null;

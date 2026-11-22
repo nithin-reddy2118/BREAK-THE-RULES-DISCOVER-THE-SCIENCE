@@ -120,10 +120,10 @@ export function TopHeader() {
 
   const topNavLinks: { id: PageId; label: string }[] = [
     { id: 'home', label: t.nav.home },
+    { id: 'smart-learning', label: t.nav.smartLearning },
     { id: 'virtual-lab', label: t.nav.virtualLab },
     { id: 'algorithm-explorer', label: t.nav.algorithmExplorer },
     { id: 'explorer', label: t.nav.explorer },
-    { id: 'innovation-hub', label: t.nav.innovationHub },
   ];
 
   const langLabels: { code: LanguageCode; label: string }[] = [

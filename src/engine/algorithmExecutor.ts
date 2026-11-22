@@ -1,10 +1,10 @@
-import { getAlgorithmById, matchBuiltInAlgorithm } from '../data/algorithmRegistry';
+import { getAlgorithmById, matchBuiltInAlgorithm } from '../data/algorithmRegistry.ts';
 import type {
   AiAlgorithmSpecification,
   AlgorithmExecutionTrace,
   AlgorithmStep,
   DecisionTreeNodeVisual,
-} from '../types/algorithm';
+} from '../types/algorithm.ts';
 
 function round4(n: number): number {
   return Math.round(n * 10000) / 10000;

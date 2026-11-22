@@ -703,7 +703,7 @@ function renderAlgorithmVisual(
 ) {
   const vs = scene.visualPayload.visualState as AlgorithmVisualState | undefined;
   ctx.save();
-  if (!vs || (vs.kind !== 'array-search' && vs.kind !== 'array-sort')) {
+  if (!vs || (vs.kind !== 'array-search' && vs.kind !== 'array-bars')) {
     ctx.fillStyle = '#E2E8F0';
     ctx.font = 'bold 18px "JetBrains Mono", monospace';
     ctx.fillText(scene.calculationStepText || scene.subtitleText, 48, h / 2);
@@ -719,10 +719,13 @@ function renderAlgorithmVisual(
   const baseY = h * 0.56;
 
   if (vs.kind === 'array-search') {
+    const low = vs.lowIndex ?? 0;
+    const high = vs.highIndex ?? Math.max(0, arr.length - 1);
+    const mid = vs.currentIndex;
     arr.forEach((val, idx) => {
       const x = startX + idx * (boxW + 8);
-      const inRange = idx >= vs.low && idx <= vs.high;
-      const isMid = idx === vs.mid;
+      const inRange = idx >= low && idx <= high;
+      const isMid = idx === mid;
       const isFound = idx === vs.foundIndex;
 
       drawRoundedRect(ctx, x, baseY - 32, boxW, 64, 8);
@@ -748,9 +751,9 @@ function renderAlgorithmVisual(
       ctx.fillText(`[${idx}]`, x + boxW / 2, baseY + 50);
 
       const tags: string[] = [];
-      if (idx === vs.low) tags.push('L');
-      if (idx === vs.mid) tags.push('M');
-      if (idx === vs.high) tags.push('R');
+      if (idx === low) tags.push('L');
+      if (idx === mid) tags.push('M');
+      if (idx === high) tags.push('R');
       if (tags.length > 0) {
         ctx.fillStyle = isMid ? '#FDE047' : '#38BDF8';
         ctx.font = 'bold 13px "JetBrains Mono", monospace';
@@ -760,14 +763,14 @@ function renderAlgorithmVisual(
     ctx.textAlign = 'left';
     ctx.fillStyle = '#BAE6FD';
     ctx.font = 'bold 15px "JetBrains Mono", monospace';
-    ctx.fillText(`Target = ${vs.target}   |   Range = [${vs.low}, ${vs.high}]`, 48, 105);
+    ctx.fillText(`Target = ${vs.target}   |   Range = [${low}, ${high}]`, 48, 105);
   } else {
     const maxVal = Math.max(...arr, 1);
     const barBottom = h - 105;
     arr.forEach((val, idx) => {
       const x = startX + idx * (boxW + 8);
       const barH = Math.max(24, (val / maxVal) * 190);
-      const active = vs.activeIndices.includes(idx);
+      const active = vs.comparingIndices.includes(idx) || vs.swappingIndices.includes(idx);
       const sorted = vs.sortedIndices.includes(idx);
       drawRoundedRect(ctx, x, barBottom - barH, boxW, barH, 6);
       ctx.fillStyle = sorted ? '#059669' : active ? '#F59E0B' : '#2563EB';
@@ -843,6 +846,254 @@ function renderGeneralOrChemistryTube(
     ctx.fillStyle = '#E2E8F0';
     ctx.font = '14px "DM Sans", sans-serif';
     ctx.fillText(scene.caption, w * 0.55, 190, w * 0.36);
+  } else if (scene.visualKind === 'physics-pendulum') {
+    const pivotX = w * 0.34;
+    const pivotY = 108;
+    const len = 185;
+    const theta = Math.cos(p * Math.PI * 2) * 0.48;
+    const bobX = pivotX + Math.sin(theta) * len;
+    const bobY = pivotY + Math.cos(theta) * len;
+
+    ctx.strokeStyle = '#64748B';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(pivotX - 90, pivotY);
+    ctx.lineTo(pivotX + 90, pivotY);
+    ctx.stroke();
+
+    ctx.setLineDash([5, 5]);
+    ctx.strokeStyle = 'rgba(148, 163, 184, 0.35)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(pivotX, pivotY);
+    ctx.lineTo(pivotX, pivotY + len + 20);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.strokeStyle = '#E2E8F0';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(pivotX, pivotY);
+    ctx.lineTo(bobX, bobY);
+    ctx.stroke();
+
+    ctx.fillStyle = '#38BDF8';
+    ctx.beginPath();
+    ctx.arc(bobX, bobY, 20, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    drawRoundedRect(ctx, w * 0.56, 98, w * 0.38, h - 185, 12);
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.35)';
+    ctx.stroke();
+    ctx.fillStyle = '#BAE6FD';
+    ctx.font = 'bold 16px "JetBrains Mono", monospace';
+    ctx.fillText('T = 2π √(L / g)', w * 0.59, 148);
+    ctx.fillStyle = '#E2E8F0';
+    ctx.font = '14px "DM Sans", sans-serif';
+    ctx.fillText('Mass-independent period · θ < 15°', w * 0.59, 186, w * 0.33);
+    ctx.fillText(scene.caption, w * 0.59, 224, w * 0.33);
+  } else if (scene.visualKind === 'physics-optics-refraction') {
+    const midY = h * 0.52;
+    // Normal line
+    ctx.setLineDash([6, 6]);
+    ctx.strokeStyle = '#94A3B8';
+    ctx.beginPath();
+    ctx.moveTo(w * 0.5, 95);
+    ctx.lineTo(w * 0.5, h - 90);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Glass slab / boundary
+    ctx.fillStyle = 'rgba(56, 189, 248, 0.14)';
+    ctx.fillRect(100, midY, w - 200, h - midY - 82);
+    ctx.strokeStyle = '#38BDF8';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(100, midY);
+    ctx.lineTo(w - 100, midY);
+    ctx.stroke();
+
+    // Incident & Refracted rays
+    const rayProg = Math.min(1, p * 1.4);
+    ctx.strokeStyle = '#FACC15';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(w * 0.25, midY - 140);
+    ctx.lineTo(
+      w * 0.25 + (w * 0.5 - w * 0.25) * Math.min(1, rayProg * 2),
+      midY - 140 + 140 * Math.min(1, rayProg * 2)
+    );
+    ctx.stroke();
+
+    if (rayProg > 0.45) {
+      const rp = Math.min(1, (rayProg - 0.45) * 2);
+      ctx.strokeStyle = '#34D399';
+      ctx.beginPath();
+      ctx.moveTo(w * 0.5, midY);
+      ctx.lineTo(w * 0.5 + 115 * rp, midY + 130 * rp);
+      ctx.stroke();
+    }
+    ctx.fillStyle = '#FDE047';
+    ctx.font = 'bold 14px "JetBrains Mono", monospace';
+    ctx.fillText('Air (n₁ = 1.00) · θ₁', 120, midY - 22);
+    ctx.fillStyle = '#6EE7B7';
+    ctx.fillText('Glass (n₂ = 1.50) · θ₂ < θ₁', 120, midY + 34);
+    ctx.fillText('n₁ sin θ₁ = n₂ sin θ₂', w * 0.62, 128);
+  } else if (scene.visualKind === 'physics-em-induction') {
+    const coilX = w * 0.56;
+    const coilY = h * 0.5;
+    const magX = 180 + Math.sin(p * Math.PI * 2) * 115;
+
+    // Bar magnet
+    ctx.fillStyle = '#EF4444';
+    ctx.fillRect(magX, coilY - 24, 60, 48);
+    ctx.fillStyle = '#2563EB';
+    ctx.fillRect(magX + 60, coilY - 24, 60, 48);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 16px "JetBrains Mono", monospace';
+    ctx.fillText('S', magX + 24, coilY + 6);
+    ctx.fillText('N', magX + 84, coilY + 6);
+
+    // Copper coil loops
+    ctx.strokeStyle = '#F59E0B';
+    ctx.lineWidth = 4;
+    for (let i = 0; i < 6; i++) {
+      ctx.beginPath();
+      ctx.ellipse(coilX + i * 24, coilY, 16, 62, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    const fluxChange = Math.abs(Math.cos(p * Math.PI * 2));
+    ctx.fillStyle = fluxChange > 0.35 ? '#34D399' : '#94A3B8';
+    ctx.font = 'bold 15px "JetBrains Mono", monospace';
+    ctx.fillText(`Induced EMF |ε| ∝ |dΦ/dt|  (${(fluxChange * 2.4).toFixed(2)} V)`, 120, 125);
+  } else if (scene.visualKind === 'biology-cell-microscope' || scene.visualKind === 'biology-dna') {
+    const cx = w * 0.38;
+    const cy = h * 0.52;
+    if (scene.visualKind === 'biology-dna') {
+      for (let i = 0; i < 12; i++) {
+        const x = 150 + i * 56;
+        const off = Math.sin(p * Math.PI * 2 + i * 0.65) * 48;
+        ctx.strokeStyle = '#F59E0B';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(x, cy - off);
+        ctx.lineTo(x, cy + off);
+        ctx.stroke();
+        ctx.fillStyle = '#38BDF8';
+        ctx.beginPath();
+        ctx.arc(x, cy - off, 8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#EC4899';
+        ctx.beginPath();
+        ctx.arc(x, cy + off, 8, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = '#BAE6FD';
+      ctx.font = 'bold 15px "JetBrains Mono", monospace';
+      ctx.fillText('Base Pairs: A–T  &  G–C  (Double Helix)', 150, 118);
+    } else {
+      ctx.fillStyle = 'rgba(16, 185, 129, 0.18)';
+      ctx.strokeStyle = '#10B981';
+      ctx.lineWidth = 4;
+      drawRoundedRect(ctx, cx - 170, cy - 110, 340, 220, 42);
+      ctx.fill();
+      ctx.stroke();
+
+      // Nucleus
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.35)';
+      ctx.strokeStyle = '#38BDF8';
+      ctx.beginPath();
+      ctx.arc(cx - 45, cy - 10, 44, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#BAE6FD';
+      ctx.font = 'bold 13px "DM Sans", sans-serif';
+      ctx.fillText('Nucleus', cx - 72, cy - 6);
+
+      // Mitochondria
+      ctx.fillStyle = '#F59E0B';
+      ctx.beginPath();
+      ctx.ellipse(cx + 68, cy + 36, 32, 16, 0.3, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#E2E8F0';
+      ctx.font = '14px "DM Sans", sans-serif';
+      ctx.fillText(scene.caption, w * 0.62, cy - 20, w * 0.34);
+    }
+  } else if (scene.visualKind === 'cs-cpu-cycle' || scene.visualKind === 'cs-transistor') {
+    const phases =
+      scene.visualKind === 'cs-cpu-cycle'
+        ? ['1. FETCH (PC → IR)', '2. DECODE (Control Unit)', '3. EXECUTE (ALU)', '4. STORE (Write-Back)']
+        : ['Base Input (Low/High)', 'Semiconductor Junction', 'Collector-Emitter Current'];
+    const activeIdx = Math.floor(p * phases.length) % phases.length;
+    phases.forEach((label, idx) => {
+      const bw = Math.min(200, (w - 140) / phases.length - 14);
+      const bx = 70 + idx * (bw + 16);
+      const by = h * 0.44;
+      const isActive = idx === activeIdx;
+      drawRoundedRect(ctx, bx, by, bw, 84, 10);
+      ctx.fillStyle = isActive ? 'rgba(37, 99, 235, 0.45)' : 'rgba(15, 23, 42, 0.85)';
+      ctx.fill();
+      ctx.strokeStyle = isActive ? '#38BDF8' : '#475569';
+      ctx.lineWidth = isActive ? 2.5 : 1.5;
+      ctx.stroke();
+      ctx.fillStyle = '#F8FAFC';
+      ctx.font = 'bold 13px "JetBrains Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(label, bx + bw / 2, by + 46, bw - 14);
+    });
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#BAE6FD';
+    ctx.font = 'bold 14px "JetBrains Mono", monospace';
+    ctx.fillText(scene.mathOrFormulaHighlight || scene.caption, 70, h * 0.72, w - 140);
+  } else if (scene.visualKind === 'math-coordinate-graph' || scene.visualKind === 'math-circle-geometry') {
+    const cx = w * 0.38;
+    const cy = h * 0.54;
+    if (scene.visualKind === 'math-circle-geometry') {
+      const r = 95;
+      ctx.strokeStyle = '#38BDF8';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2 * Math.min(1, p * 1.2 + 0.15));
+      ctx.stroke();
+      ctx.strokeStyle = '#F59E0B';
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + r, cy);
+      ctx.stroke();
+      ctx.fillStyle = '#FDE047';
+      ctx.font = 'bold 15px "JetBrains Mono", monospace';
+      ctx.fillText('r', cx + r / 2, cy - 10);
+      ctx.fillStyle = '#BAE6FD';
+      ctx.fillText('Circumference = 2πr   |   Area = πr²', w * 0.56, cy - 10);
+    } else {
+      ctx.strokeStyle = '#475569';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(cx - 170, cy);
+      ctx.lineTo(cx + 170, cy);
+      ctx.moveTo(cx, cy - 140);
+      ctx.lineTo(cx, cy + 120);
+      ctx.stroke();
+
+      ctx.strokeStyle = '#38BDF8';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      for (let x = -120; x <= 120; x += 4) {
+        const y = -(x * x) / 110 + 75;
+        if (x === -120) ctx.moveTo(cx + x, cy + y);
+        else ctx.lineTo(cx + x, cy + y);
+      }
+      ctx.stroke();
+      ctx.fillStyle = '#BAE6FD';
+      ctx.font = 'bold 15px "JetBrains Mono", monospace';
+      ctx.fillText(scene.mathOrFormulaHighlight || 'y = ax² + bx + c', w * 0.58, cy - 20);
+    }
   } else {
     // Dynamic particle / wave / datapath node diagram
     const cx = w / 2;

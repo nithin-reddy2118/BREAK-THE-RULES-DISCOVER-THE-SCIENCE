@@ -93,6 +93,7 @@ const DEFAULT_PERSISTED: PersistedState = {
 const VALID_PAGES = new Set<PageId>([
   'home',
   'dashboard',
+  'smart-learning',
   'explorer',
   'algorithm-explorer',
   'creator',

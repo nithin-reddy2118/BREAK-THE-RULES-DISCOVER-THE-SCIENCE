@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import { useLab } from '../../context/LabContext';
 import { CHEMISTRY_CHEMICAL_VAULT, getChemicalById } from '../../data/chemicals';
+import { evaluateBenchChemistryInteraction } from '../../data/chemistryReactions';
 import {
   checkInstrumentConnection,
   getInstrumentById,
@@ -328,9 +329,82 @@ export function VirtualLabRoom({
   );
 
   const heaterPowerW = useMemo(() => {
-    const heaterItem = workbenchItems.find((w) => w.instrumentId === 'chem-hot-plate');
-    return heaterItem?.config.power ?? 500;
+    const heaterItem = workbenchItems.find(
+      (w) => w.instrumentId === 'chem-hot-plate' || w.instrumentId === 'chem-bunsen-burner'
+    );
+    return heaterItem?.config.power ?? (heaterItem ? 500 : 0);
   }, [workbenchItems]);
+
+  const heaterProximityInfo = useMemo(() => {
+    const heaterItem = workbenchItems.find(
+      (w) => w.instrumentId === 'chem-hot-plate' || w.instrumentId === 'chem-bunsen-burner'
+    );
+    const vesselIds = ['chem-beaker', 'chem-test-tubes', 'chem-conical-flask', 'chem-crucible'];
+    const vessels = workbenchItems.filter((w) => vesselIds.includes(w.instrumentId));
+    const heaterNearVessel = Boolean(
+      heaterItem &&
+        vessels.some((v) => {
+          const dist = Math.hypot(heaterItem.xPercent - v.xPercent, heaterItem.yPercent - v.yPercent);
+          const connected = connections.some(
+            (c) =>
+              (c.fromInstanceId === heaterItem.instanceId && c.toInstanceId === v.instanceId) ||
+              (c.toInstanceId === heaterItem.instanceId && c.fromInstanceId === v.instanceId)
+          );
+          return dist < 30 || connected;
+        })
+    );
+    const condenserItem = workbenchItems.find((w) => w.instrumentId === 'chem-condenser');
+    const condenserLinked = Boolean(
+      condenserItem &&
+        vessels.some((v) =>
+          connections.some(
+            (c) =>
+              (c.fromInstanceId === condenserItem.instanceId && c.toInstanceId === v.instanceId) ||
+              (c.toInstanceId === condenserItem.instanceId && c.fromInstanceId === v.instanceId)
+          )
+        )
+    );
+    return {
+      heaterPresent: Boolean(heaterItem),
+      heaterNearVessel,
+      condenserLinked,
+      vesselInstrumentIds: vessels.map((v) => v.instrumentId),
+    };
+  }, [workbenchItems, connections]);
+
+  const chemOutcome = useMemo(() => {
+    if (room.id !== 'chemistry') return null;
+    return evaluateBenchChemistryInteraction({
+      vesselInstrumentIds: heaterProximityInfo.vesselInstrumentIds,
+      heaterPresent: heaterProximityInfo.heaterPresent,
+      heaterNearVessel: heaterProximityInfo.heaterNearVessel,
+      heaterPowerW,
+      condenserLinked: heaterProximityInfo.condenserLinked,
+      substanceIds: chemicalItems.map((c) => c.chemicalId),
+      pressureKpa: params.pressure ?? 101.325,
+      liveTempC: liveWaterTempC,
+      isRunning,
+    });
+  }, [
+    room.id,
+    heaterProximityInfo,
+    heaterPowerW,
+    chemicalItems,
+    params.pressure,
+    liveWaterTempC,
+    isRunning,
+  ]);
+
+  // Auto-halt if Safety Guardian triggers on the Chemistry bench
+  useEffect(() => {
+    if (room.id === 'chemistry' && chemOutcome?.blocked && isRunning) {
+      setIsRunning(false);
+      setStatusNotice({
+        type: 'warning',
+        text: chemOutcome.blockReason || chemOutcome.title,
+      });
+    }
+  }, [room.id, chemOutcome, isRunning]);
 
   useEffect(() => {
     if (!isRunning) return;
@@ -342,10 +416,16 @@ export function VirtualLabRoom({
       last = now;
       setSimTimeSec((prev) => prev + dt);
 
-      if (experiment.id === 'boiling-point') {
-        const hasHeater = workbenchItems.some((w) => w.instrumentId === 'chem-hot-plate');
-        const rate = hasHeater ? heaterPowerW / 104.6 : 0;
-        setLiveWaterTempC((prev) => Math.min(targetBoilingC, prev + rate * dt));
+      const shouldHeatChemistry =
+        room.id === 'chemistry' &&
+        heaterProximityInfo.heaterPresent &&
+        (heaterProximityInfo.heaterNearVessel || experiment.id === 'boiling-point') &&
+        !chemOutcome?.blocked;
+
+      if (experiment.id === 'boiling-point' || shouldHeatChemistry) {
+        const rate = heaterPowerW > 0 ? heaterPowerW / 104.6 : 0;
+        const capC = chemOutcome?.targetBoilingC ?? targetBoilingC;
+        setLiveWaterTempC((prev) => Math.min(capC, prev + rate * dt));
       }
 
       rafId = requestAnimationFrame(tick);
@@ -353,7 +433,18 @@ export function VirtualLabRoom({
 
     rafId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafId);
-  }, [isRunning, simSpeed, experiment.id, workbenchItems, heaterPowerW, targetBoilingC]);
+  }, [
+    isRunning,
+    simSpeed,
+    experiment.id,
+    room.id,
+    heaterProximityInfo.heaterPresent,
+    heaterProximityInfo.heaterNearVessel,
+    chemOutcome?.blocked,
+    chemOutcome?.targetBoilingC,
+    heaterPowerW,
+    targetBoilingC,
+  ]);
 
   useEffect(() => {
     setLiveWaterTempC((prev) => Math.min(prev, targetBoilingC));
@@ -634,6 +725,26 @@ export function VirtualLabRoom({
 
   // Live visual state passed to each SVG instrument
   const getSimStateForItem = (item: WorkbenchItem): EquipmentSimState => {
+    if (room.id === 'chemistry' && chemOutcome) {
+      const pressure = params.pressure ?? 101.325;
+      const isBoiling = chemOutcome.isBoiling;
+      return {
+        isRunning,
+        phase: simTimeSec * 2.4,
+        liveTempC: chemOutcome.vesselTempC,
+        boilingTempC: chemOutcome.targetBoilingC ?? targetBoilingC,
+        pressureKpa: pressure,
+        powerW: item.config.power ?? heaterPowerW,
+        isBoiling,
+        phValue: chemOutcome.phEstimate ?? undefined,
+        liquidColor: chemOutcome.liquidColorHex,
+        gasActive: chemOutcome.gasEvolution.active,
+        gasColor: chemOutcome.gasEvolution.colorHex,
+        precipitateColor: chemOutcome.precipitateOrDeposit.active
+          ? chemOutcome.precipitateOrDeposit.colorHex
+          : undefined,
+      };
+    }
     if (experiment.id === 'boiling-point') {
       const pressure = params.pressure ?? 101.325;
       const isBoiling = liveWaterTempC >= targetBoilingC - 0.05 && isRunning;
@@ -868,7 +979,16 @@ export function VirtualLabRoom({
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={() => setIsRunning((r) => !r)}
+              onClick={() => {
+                if (!isRunning && room.id === 'chemistry' && chemOutcome?.blocked) {
+                  setStatusNotice({
+                    type: 'warning',
+                    text: chemOutcome.blockReason || chemOutcome.title,
+                  });
+                  return;
+                }
+                setIsRunning((r) => !r);
+              }}
               className="px-3.5 py-1.5 rounded-lg bg-blue-700 text-white text-xs font-bold hover:bg-blue-800 flex items-center gap-1.5 min-h-[36px]"
             >
               {isRunning ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
@@ -1166,9 +1286,13 @@ export function VirtualLabRoom({
                       Center Island Bench · {experiment.shortTitle}
                     </div>
                     <div className="font-mono font-bold text-blue-700 tabular-nums text-xs sm:text-sm">
-                      {experiment.id === 'boiling-point'
-                        ? `Water: ${(isRunning || simTimeSec > 0 ? liveWaterTempC : 25).toFixed(1)} °C · T_boil = ${targetBoilingC.toFixed(2)} °C (${(params.pressure ?? 101.325).toFixed(1)} kPa)`
-                        : `${result.primarySymbol} = ${result.primaryValue} ${result.primaryUnit}`}
+                      {room.id === 'chemistry' && chemOutcome
+                        ? `${chemOutcome.vesselTempC.toFixed(1)} °C · ${
+                            chemOutcome.targetBoilingC ? `T_boil ${chemOutcome.targetBoilingC.toFixed(1)} °C · ` : ''
+                          }${chemOutcome.equation}`
+                        : experiment.id === 'boiling-point'
+                          ? `Water: ${(isRunning || simTimeSec > 0 ? liveWaterTempC : 25).toFixed(1)} °C · T_boil = ${targetBoilingC.toFixed(2)} °C (${(params.pressure ?? 101.325).toFixed(1)} kPa)`
+                          : `${result.primarySymbol} = ${result.primaryValue} ${result.primaryUnit}`}
                     </div>
                   </div>
                   <div className="rounded-lg border border-slate-200 bg-white/95 px-2.5 py-1 text-[11px] font-mono text-slate-700 tabular-nums shadow-sm">
@@ -1559,6 +1683,84 @@ export function VirtualLabRoom({
           )}
         </div>
       </div>
+
+      {/* CHEMISTRY LIVE REACTION & PARTICLE EXPLANATION PANEL */}
+      {room.id === 'chemistry' && chemOutcome && (
+        <div
+          className={`rounded-xl border p-4 space-y-3 shadow-sm ${
+            chemOutcome.blocked
+              ? 'border-rose-300 bg-rose-50'
+              : 'border-slate-200 bg-white'
+          }`}
+        >
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="text-xs font-semibold text-blue-700 flex items-center gap-1.5">
+                <Atom className="w-4 h-4" />
+                Chemistry Reaction &amp; Thermal State Engine
+              </div>
+              <h3 className="text-base font-display font-bold text-slate-900 mt-0.5">
+                {chemOutcome.title}
+              </h3>
+              <div className="text-xs font-mono text-slate-700 mt-0.5">{chemOutcome.equation}</div>
+            </div>
+            <div className="flex flex-wrap items-center gap-3 text-xs font-mono tabular-nums text-slate-700">
+              <span>Vessel: {chemOutcome.vesselTempC.toFixed(1)} °C</span>
+              {chemOutcome.phEstimate !== null && (
+                <>
+                  <span className="text-slate-300">·</span>
+                  <span>Est. pH: {chemOutcome.phEstimate.toFixed(1)}</span>
+                </>
+              )}
+              <span className="text-slate-300">·</span>
+              <span
+                className={
+                  chemOutcome.safetyLevel === 'RED'
+                    ? 'text-rose-700 font-bold'
+                    : chemOutcome.safetyLevel === 'AMBER'
+                      ? 'text-amber-700 font-semibold'
+                      : 'text-emerald-700 font-semibold'
+                }
+              >
+                Safety: {chemOutcome.safetyLevel}
+              </span>
+            </div>
+          </div>
+
+          {chemOutcome.blocked && chemOutcome.blockReason ? (
+            <div className="rounded-lg border border-rose-200 bg-white p-3 text-xs text-rose-800 flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-rose-600" />
+              <span>{chemOutcome.blockReason}</span>
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-2 gap-3 text-xs">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-1">
+                <div className="font-semibold text-slate-900">Observable Bench Behaviour</div>
+                <ul className="list-disc pl-4 space-y-1 text-slate-700">
+                  {chemOutcome.visualObservations.map((obs, idx) => (
+                    <li key={idx}>{obs}</li>
+                  ))}
+                </ul>
+                {chemOutcome.gasEvolution.active && (
+                  <div className="pt-1 font-mono text-blue-700">
+                    Gas Evolution: {chemOutcome.gasEvolution.name} ({chemOutcome.gasEvolution.formula})
+                  </div>
+                )}
+                {chemOutcome.precipitateOrDeposit.active && (
+                  <div className="pt-1 text-amber-800 font-medium">
+                    Solid / Deposit: {chemOutcome.precipitateOrDeposit.description}
+                  </div>
+                )}
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-1.5">
+                <div className="font-semibold text-slate-900">Particle-Level Mechanism</div>
+                <p className="text-slate-700 leading-relaxed">{chemOutcome.particleLevelExplanation}</p>
+                <p className="text-[11px] text-slate-500 pt-1">{chemOutcome.scientificLimitationNote}</p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* BELOW ROOM: COMPACT INSPECTOR, CONNECTIONS & EXPERIMENT MODEL SWITCHER */}
       <div className="grid lg:grid-cols-12 gap-4">

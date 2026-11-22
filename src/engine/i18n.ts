@@ -7,6 +7,7 @@ export interface TranslationBundle {
   nav: {
     home: string;
     dashboard: string;
+    smartLearning: string;
     explorer: string;
     algorithmExplorer: string;
     creator: string;
@@ -55,6 +56,7 @@ const EN: TranslationBundle = {
   nav: {
     home: 'Home',
     dashboard: 'Student Dashboard',
+    smartLearning: 'Smart Learning',
     explorer: 'Science Explorer',
     algorithmExplorer: 'Algorithm Explorer',
     creator: 'Experiment Creator',
@@ -103,6 +105,7 @@ const KN: TranslationBundle = {
   nav: {
     home: 'ಮುಖಪುಟ',
     dashboard: 'ವಿದ್ಯಾರ್ಥಿ ಡ್ಯಾಶ್‌ಬೋರ್ಡ್',
+    smartLearning: 'ಸ್ಮಾರ್ಟ್ ಲರ್ನಿಂಗ್',
     explorer: 'ವಿಜ್ಞಾನ ಅನ್ವೇಷಕ',
     algorithmExplorer: 'ಅಲ್ಗಾರಿದಮ್ ಅನ್ವೇಷಕ',
     creator: 'ಪ್ರಯೋಗ ರಚನೆಕಾರ',
@@ -151,6 +154,7 @@ const HI: TranslationBundle = {
   nav: {
     home: 'होम',
     dashboard: 'छात्र डैशबोर्ड',
+    smartLearning: 'स्मार्ट लर्निंग',
     explorer: 'विज्ञान एक्सप्लोरर',
     algorithmExplorer: 'एल्गोरिथम एक्सप्लोरर',
     creator: 'प्रयोग निर्माता',
